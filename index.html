@@ -1,80 +1,303 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Monitoring Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: Arial;
+      font-family: 'Inter', Arial, sans-serif;
       background: #0f172a;
-      color: white;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    /* ── Header ── */
+    header {
       text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #f8fafc;
+    }
+
+    header p {
+      margin-top: 6px;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+
+    /* ── Cards row ── */
+    .cards {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 28px;
+      width: 100%;
+      max-width: 860px;
     }
 
     .card {
       background: #1e293b;
-      padding: 20px;
-      margin: 20px auto;
-      width: 300px;
-      border-radius: 12px;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 24px 28px;
+      flex: 1 1 200px;
+      max-width: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color 0.3s;
     }
 
-    .status-up { color: #22c55e; }
+    .card:hover { border-color: #475569; }
+
+    .card-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+    }
+
+    .card-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      line-height: 1;
+    }
+
+    .card-sub {
+      font-size: 0.8rem;
+      color: #475569;
+    }
+
+    /* Status card */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #64748b;
+      flex-shrink: 0;
+    }
+
+    .dot.up   { background: #22c55e; box-shadow: 0 0 8px #22c55e88; animation: pulse 2s infinite; }
+    .dot.down { background: #ef4444; box-shadow: 0 0 8px #ef444488; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .status-up   { color: #22c55e; }
     .status-down { color: #ef4444; }
+
+    /* ── Chart container ── */
+    .chart-wrapper {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .chart-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .chart-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #38bdf8;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    canvas { width: 100% !important; }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 32px;
+      font-size: 0.75rem;
+      color: #334155;
+    }
   </style>
 </head>
 
 <body>
 
-<h1>📊 Uptime Monitoring Dashboard</h1>
+  <header>
+    <h1>� Uptime Monitoring Dashboard</h1>
+    <p id="target-url">Monitoreando: cargando...</p>
+  </header>
 
-<div class="card">
-  <h2>Status: <span id="status">Loading...</span></h2>
-  <h3>Latency: <span id="latency">-</span> ms</h3>
-</div>
+  <div class="cards">
+    <!-- Status -->
+    <div class="card">
+      <span class="card-label">Estado</span>
+      <div class="status-badge">
+        <span class="dot" id="dot"></span>
+        <span id="status" class="card-value">—</span>
+      </div>
+      <span class="card-sub">Última verificación: <span id="last-check">—</span></span>
+    </div>
 
-<canvas id="chart" width="400"></canvas>
+    <!-- Latency -->
+    <div class="card">
+      <span class="card-label">Latencia</span>
+      <span class="card-value"><span id="latency">—</span> <small style="font-size:1rem;color:#64748b">ms</small></span>
+      <span class="card-sub">Tiempo de respuesta</span>
+    </div>
+
+    <!-- HTTP Code -->
+    <div class="card">
+      <span class="card-label">Código HTTP</span>
+      <span class="card-value" id="http-code">—</span>
+      <span class="card-sub">Código de respuesta</span>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-wrapper">
+    <div class="chart-header">
+      <span class="chart-title">Latencia en tiempo real</span>
+      <span class="chart-badge">Últimas 10 lecturas</span>
+    </div>
+    <canvas id="chart" height="100"></canvas>
+  </div>
+
+  <footer>Actualización automática cada 3 segundos</footer>
 
 <script>
-let labels = [];
-let data = [];
+  const labels = [];
+  const dataPoints = [];
 
-const chart = new Chart(document.getElementById('chart'), {
-  type: 'line',
-  data: {
-    labels: labels,
-    datasets: [{
-      label: 'Latency (ms)',
-      data: data,
-      borderColor: '#38bdf8'
-    }]
+  const ctx = document.getElementById('chart').getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+  gradient.addColorStop(0, 'rgba(56,189,248,0.3)');
+  gradient.addColorStop(1, 'rgba(56,189,248,0)');
+
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Latencia (ms)',
+        data: dataPoints,
+        borderColor: '#38bdf8',
+        borderWidth: 2,
+        pointBackgroundColor: '#38bdf8',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          borderColor: '#334155',
+          borderWidth: 1,
+          titleColor: '#94a3b8',
+          bodyColor: '#f1f5f9',
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y} ms`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#475569', font: { size: 11 } },
+          grid: { color: '#1e293b' }
+        },
+        y: {
+          ticks: { color: '#475569', font: { size: 11 } },
+          grid: { color: '#263348' },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  async function fetchMetrics() {
+    try {
+      const res  = await fetch('/metrics');
+      const json = await res.json();
+
+      const statusEl  = document.getElementById('status');
+      const dotEl     = document.getElementById('dot');
+      const latencyEl = document.getElementById('latency');
+      const codeEl    = document.getElementById('http-code');
+      const checkEl   = document.getElementById('last-check');
+
+      const isUp = json.status === 'UP';
+
+      statusEl.textContent  = json.status;
+      statusEl.className    = isUp ? 'card-value status-up' : 'card-value status-down';
+      dotEl.className       = isUp ? 'dot up' : 'dot down';
+      latencyEl.textContent = json.latency ?? 0;
+      codeEl.textContent    = json.code ?? '—';
+      checkEl.textContent   = new Date().toLocaleTimeString();
+
+      document.getElementById('target-url').textContent =
+        'Monitoreando: portafolioconagentia.vercel.app';
+
+      labels.push(new Date().toLocaleTimeString());
+      dataPoints.push(json.latency ?? 0);
+
+      if (labels.length > 10) { labels.shift(); dataPoints.shift(); }
+
+      chart.update();
+    } catch (e) {
+      console.error('Error fetching metrics:', e);
+    }
   }
-});
 
-async function fetchMetrics() {
-  const res = await fetch('/metrics');
-  const json = await res.json();
+  fetchMetrics();
+  setInterval(fetchMetrics, 3000);
+</script>
 
-  document.getElementById("status").innerText = json.status;
-  document.getElementById("latency").innerText = json.latency || 0;
-
-  if (json.status === "UP") {
-    document.getElementById("status").className = "status-up";
-  } else {
-    document.getElementById("status").className = "status-down";
-  }
-
-  labels.push(new Date().toLocaleTimeString());
-  data.push(json.latency || 0);
-
-  if (labels.length > 10) {
-    labels.shift();
-    data.shift();
-  }
-
-  chart.update();
-}
+</body>
+</html>
 
 setInterval(fetchMetrics, 3000);
 </script>
