@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Monitoring Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      margin: 20px auto;
+      width: 300px;
+      border-radius: 12px;
+    }
+
+    .status-up { color: #22c55e; }
+    .status-down { color: #ef4444; }
+  </style>
+</head>
+
+<body>
+
+<h1>📊 Uptime Monitoring Dashboard</h1>
+
+<div class="card">
+  <h2>Status: <span id="status">Loading...</span></h2>
+  <h3>Latency: <span id="latency">-</span> ms</h3>
+</div>
+
+<canvas id="chart" width="400"></canvas>
+
+<script>
+let labels = [];
+let data = [];
+
+const chart = new Chart(document.getElementById('chart'), {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: 'Latency (ms)',
+      data: data,
+      borderColor: '#38bdf8'
+    }]
+  }
+});
+
+async function fetchMetrics() {
+  const res = await fetch('/metrics');
+  const json = await res.json();
+
+  document.getElementById("status").innerText = json.status;
+  document.getElementById("latency").innerText = json.latency || 0;
+
+  if (json.status === "UP") {
+    document.getElementById("status").className = "status-up";
+  } else {
+    document.getElementById("status").className = "status-down";
+  }
+
+  labels.push(new Date().toLocaleTimeString());
+  data.push(json.latency || 0);
+
+  if (labels.length > 10) {
+    labels.shift();
+    data.shift();
+  }
+
+  chart.update();
+}
+
+setInterval(fetchMetrics, 3000);
+</script>
+
+</body>
+</html>
